@@ -2,6 +2,7 @@ package com.thelightphone.games.sudoku
 
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
+import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -188,6 +189,24 @@ class SudokuScreenViewModel(
         persistActivePuzzle(newState)
     }
 
+    /**
+     * Resets every entry back to the puzzle's original clues - a clean slate on the same
+     * puzzle, distinct from tossing it for a different one entirely. Doesn't touch the daily
+     * limit at all, since it's still the same puzzle you already paid an attempt for.
+     */
+    fun clearAllEntries() {
+        val current = _state.value as? SudokuUiState.Playing ?: return
+        if (current.isSolved) return
+
+        val newState = current.copy(
+            entries = current.puzzle.copyOf(),
+            isSolved = false,
+            selectedIndex = null,
+        )
+        _state.value = newState
+        persistActivePuzzle(newState)
+    }
+
     private fun persistActivePuzzle(state: SudokuUiState.Playing) {
         viewModelScope.launch { activePuzzleStore.save(GameKeys.SUDOKU, encode(state)) }
     }
@@ -324,6 +343,7 @@ private fun PlayingContent(state: SudokuUiState.Playing, viewModel: SudokuScreen
                 NumberPad(
                     onDigit = { digit -> viewModel.enterDigit(digit) },
                     onClear = { viewModel.clearSelected() },
+                    onClearAll = { viewModel.clearAllEntries() },
                     modifier = Modifier.fillMaxWidth(),
                 )
             }
@@ -459,6 +479,7 @@ private fun SudokuGrid(
 private fun NumberPad(
     onDigit: (Int) -> Unit,
     onClear: () -> Unit,
+    onClearAll: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
     Column(modifier = modifier.padding(vertical = 0.75f.gridUnitsAsDp())) {
@@ -490,7 +511,12 @@ private fun NumberPad(
             LightIcon(
                 icon = LightIcons.DELETE,
                 modifier = Modifier
-                    .lightClickable(onClick = onClear)
+                    .combinedClickable(
+                        interactionSource = null,
+                        indication = null,
+                        onClick = onClear,
+                        onLongClick = onClearAll,
+                    )
                     .padding(0.5f.gridUnitsAsDp()),
             )
         }
