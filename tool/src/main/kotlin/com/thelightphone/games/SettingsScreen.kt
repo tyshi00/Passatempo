@@ -145,14 +145,17 @@ private fun SettingsRow(
             .padding(horizontal = 2f.gridUnitsAsDp(), vertical = 1.25f.gridUnitsAsDp()),
         verticalAlignment = Alignment.CenterVertically,
     ) {
+        // Note: LightIcons.TOGGLE_ON renders its knob on the LEFT, TOGGLE_OFF on the RIGHT -
+        // the reverse of what the names suggest. So "off" (isOn = false, left) uses TOGGLE_ON,
+        // and "on" (isOn = true, right) uses TOGGLE_OFF.
+        LightIcon(
+            icon = if (isOn) LightIcons.TOGGLE_OFF else LightIcons.TOGGLE_ON,
+            modifier = Modifier.padding(end = 1.5f.gridUnitsAsDp()),
+        )
         LightText(
             text = title,
             variant = LightTextVariant.Copy,
             modifier = Modifier.weight(1f),
         )
-        // Note: LightIcons.TOGGLE_ON renders its knob on the LEFT, TOGGLE_OFF on the RIGHT -
-        // the reverse of what the names suggest. So "off" (isOn = false, left) uses TOGGLE_ON,
-        // and "on" (isOn = true, right) uses TOGGLE_OFF.
-        LightIcon(icon = if (isOn) LightIcons.TOGGLE_OFF else LightIcons.TOGGLE_ON)
     }
 }
