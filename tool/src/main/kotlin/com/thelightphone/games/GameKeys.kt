@@ -10,9 +10,15 @@ object GameKeys {
     const val SUDOKU = "sudoku"
     const val WORD_SEARCH = "word_search"
     const val DICE = "dice"
+    const val BLACKJACK = "blackjack"
+    const val KLONDIKE = "klondike"
 }
 
-/** Every game, in the order they should appear on the home screen and in Settings. */
+/**
+ * Every game, in the order they should appear on the home screen and in Settings.
+ * DICE always stays last, no matter what gets added later - insert new games above it,
+ * never below.
+ */
 val ALL_GAME_KEYS = listOf(
     GameKeys.SNAKE,
     GameKeys.BRICK_BREAKER,
@@ -21,6 +27,8 @@ val ALL_GAME_KEYS = listOf(
     GameKeys.CONNECT_FOUR,
     GameKeys.SUDOKU,
     GameKeys.WORD_SEARCH,
+    GameKeys.BLACKJACK,
+    GameKeys.KLONDIKE,
     GameKeys.DICE,
 )
 
@@ -34,6 +42,8 @@ fun gameDisplayName(gameKey: String): String = when (gameKey) {
     GameKeys.SUDOKU -> "Sudoku"
     GameKeys.WORD_SEARCH -> "Word Search"
     GameKeys.DICE -> "Dice"
+    GameKeys.BLACKJACK -> "Blackjack"
+    GameKeys.KLONDIKE -> "Klondike"
     else -> gameKey
 }
 
@@ -47,4 +57,6 @@ object GameBudgets {
     const val PONG_SECONDS = 15 * 60
     const val TIC_TAC_TOE_SECONDS = 20 * 60
     const val CONNECT_FOUR_SECONDS = 20 * 60
+    const val BLACKJACK_SECONDS = 10 * 60
+    const val KLONDIKE_SECONDS = 30 * 60
 }

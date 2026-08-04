@@ -12,9 +12,11 @@ import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.lifecycle.viewModelScope
+import com.thelightphone.games.blackjack.BlackjackScreen
 import com.thelightphone.games.brickbreaker.BrickBreakerScreen
 import com.thelightphone.games.connectfour.ConnectFourScreen
 import com.thelightphone.games.dice.DiceScreen
+import com.thelightphone.games.klondike.KlondikeScreen
 import com.thelightphone.games.pong.PongScreen
 import com.thelightphone.games.snake.SnakeScreen
 import com.thelightphone.games.sudoku.SudokuScreen
@@ -57,6 +59,8 @@ class HomeScreenViewModel(
         val sudokuRemaining: Int = DailyLimitStore.DEFAULT_DAILY_LIMIT,
         val wordSearchRemaining: Int = DailyLimitStore.DEFAULT_DAILY_LIMIT,
         val diceRemaining: Int = DAILY_DICE_THROWS,
+        val blackjackRemainingSeconds: Int = GameBudgets.BLACKJACK_SECONDS,
+        val klondikeRemainingSeconds: Int = GameBudgets.KLONDIKE_SECONDS,
         val gameVisibility: Map<String, Boolean> = emptyMap(),
     )
 
@@ -106,6 +110,14 @@ class HomeScreenViewModel(
                 sudokuRemaining = dailyLimitStore.remainingPlays(GameKeys.SUDOKU),
                 wordSearchRemaining = dailyLimitStore.remainingPlays(GameKeys.WORD_SEARCH),
                 diceRemaining = dailyLimitStore.remainingPlays(GameKeys.DICE, DAILY_DICE_THROWS),
+                blackjackRemainingSeconds = dailyPlaytimeStore.remainingSeconds(
+                    GameKeys.BLACKJACK,
+                    GameBudgets.BLACKJACK_SECONDS,
+                ),
+                klondikeRemainingSeconds = dailyPlaytimeStore.remainingSeconds(
+                    GameKeys.KLONDIKE,
+                    GameBudgets.KLONDIKE_SECONDS,
+                ),
                 gameVisibility = ALL_GAME_KEYS.associateWith { gameVisibilityStore.isVisible(it) },
             )
         }
@@ -207,6 +219,24 @@ class HomeScreen(sealedActivity: SealedLightActivity) :
                                 onClick = { navigateTo(screenFactory = { activity -> WordSearchScreen(activity) }) },
                             )
                         }
+                        if (state.gameVisibility[GameKeys.BLACKJACK] != false) {
+                            GameMenuRow(
+                                title = gameDisplayName(GameKeys.BLACKJACK),
+                                subtitle = describeRemainingTime(state.blackjackRemainingSeconds),
+                                enabled = state.blackjackRemainingSeconds > 0,
+                                onClick = { navigateTo(screenFactory = { activity -> BlackjackScreen(activity) }) },
+                            )
+                        }
+                        if (state.gameVisibility[GameKeys.KLONDIKE] != false) {
+                            GameMenuRow(
+                                title = gameDisplayName(GameKeys.KLONDIKE),
+                                subtitle = describeRemainingTime(state.klondikeRemainingSeconds),
+                                enabled = state.klondikeRemainingSeconds > 0,
+                                onClick = { navigateTo(screenFactory = { activity -> KlondikeScreen(activity) }) },
+                            )
+                        }
+                        // Dice always stays last in the list, no matter what games get added
+                        // above it later - keep any new game's row above this block, not below.
                         if (state.gameVisibility[GameKeys.DICE] != false) {
                             GameMenuRow(
                                 title = gameDisplayName(GameKeys.DICE),
