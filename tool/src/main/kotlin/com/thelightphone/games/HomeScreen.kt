@@ -159,8 +159,8 @@ class HomeScreen(sealedActivity: SealedLightActivity) :
                             .fillMaxWidth()
                             .padding(horizontal = 2f.gridUnitsAsDp())
                             // Leaves room for the floating settings icon (2 gridUnits tall +
-                            // 2 gridUnits of its own padding = 4), so the scroll area - and its
-                            // scrollbar - never extends behind it.
+                            // 2 gridUnits of its own padding = 4) at the bottom-left, so the
+                            // last row's text never sits underneath it.
                             .padding(bottom = 5f.gridUnitsAsDp()),
                     ) {
                         if (state.gameVisibility[GameKeys.SNAKE] != false) {
@@ -251,7 +251,7 @@ class HomeScreen(sealedActivity: SealedLightActivity) :
                 LightIcon(
                     icon = LightIcons.SETTINGS,
                     modifier = Modifier
-                        .align(Alignment.BottomEnd)
+                        .align(Alignment.BottomStart)
                         .padding(2f.gridUnitsAsDp())
                         .lightClickable {
                             navigateTo(screenFactory = { activity -> SettingsScreen(activity) })
