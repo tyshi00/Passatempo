@@ -69,17 +69,20 @@ sealed class BlackjackUiState {
         val resultRevealed: Boolean, // true once the whole reveal sequence has finished
         val canDouble: Boolean,
         val remainingSeconds: Int,
+        val stats: BlackjackStatsStore.Stats,
     ) : BlackjackUiState()
 }
 
 class BlackjackScreenViewModel(
     private val dailyPlaytimeStore: DailyPlaytimeStore,
+    private val statsStore: BlackjackStatsStore,
 ) : LightViewModel<Unit>() {
 
     private var game = BlackjackGame.deal()
     private var dealerHoleRevealed = false
     private var dealerVisibleExtraCount = 0
     private var resultRevealed = true
+    private var stats = BlackjackStatsStore.Stats()
 
     private var budgetJob: Job? = null
     private var revealJob: Job? = null
@@ -93,6 +96,7 @@ class BlackjackScreenViewModel(
         if (!hasStarted) {
             hasStarted = true
             viewModelScope.launch {
+                stats = statsStore.load()
                 val remaining = dailyPlaytimeStore.remainingSeconds(GameKeys.BLACKJACK, GameBudgets.BLACKJACK_SECONDS)
                 if (remaining <= 0) {
                     _state.value = BlackjackUiState.TimeUp
@@ -198,6 +202,12 @@ class BlackjackScreenViewModel(
             }
 
             delay(RESULT_REVEAL_DELAY_MS)
+            stats = when (game.state) {
+                BlackjackState.PLAYER_BLACKJACK, BlackjackState.PLAYER_WINS -> statsStore.recordWin()
+                BlackjackState.PLAYER_BUST, BlackjackState.DEALER_WINS -> statsStore.recordLoss()
+                BlackjackState.PUSH -> statsStore.recordPush()
+                else -> stats // round is guaranteed over here, so this branch shouldn't run
+            }
             resultRevealed = true
             _state.value = snapshot(remainingSeconds)
         }
@@ -214,6 +224,7 @@ class BlackjackScreenViewModel(
             resultRevealed = resultRevealed,
             canDouble = game.canDouble,
             remainingSeconds = remainingSeconds,
+            stats = stats,
         )
     }
 }
@@ -224,8 +235,10 @@ class BlackjackScreen(sealedActivity: SealedLightActivity) :
     override val viewModelClass: Class<BlackjackScreenViewModel>
         get() = BlackjackScreenViewModel::class.java
 
-    override fun createViewModel(): BlackjackScreenViewModel =
-        BlackjackScreenViewModel(DailyPlaytimeStore(lightContext.dataStore))
+    override fun createViewModel(): BlackjackScreenViewModel = BlackjackScreenViewModel(
+        dailyPlaytimeStore = DailyPlaytimeStore(lightContext.dataStore),
+        statsStore = BlackjackStatsStore(lightContext.dataStore),
+    )
 
     @Composable
     override fun Content() {
@@ -297,6 +310,14 @@ private fun PlayingContent(state: BlackjackUiState.Playing, viewModel: Blackjack
     Column(
         modifier = Modifier.fillMaxSize().padding(horizontal = 1.5f.gridUnitsAsDp()),
     ) {
+        LightText(
+            text = "${state.stats.wins}W  ${state.stats.losses}L  ${state.stats.pushes}P",
+            variant = LightTextVariant.Detail,
+            lighten = true,
+            align = TextAlign.Center,
+            modifier = Modifier.fillMaxWidth().padding(top = 0.5f.gridUnitsAsDp()),
+        )
+
         // ---- Dealer ----
         LightText(
             text = "DEALER",

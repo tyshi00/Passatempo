@@ -7,6 +7,7 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
@@ -61,6 +62,7 @@ sealed class BrickBreakerUiState {
         val isGameOver: Boolean,
         val isWon: Boolean,
         val remainingSeconds: Int,
+        val gameStarted: Boolean = true,
     ) : BrickBreakerUiState()
 }
 
@@ -85,14 +87,13 @@ class BrickBreakerScreenViewModel(
                 if (remaining <= 0) {
                     _state.value = BrickBreakerUiState.TimeUp
                 } else {
-                    _state.value = snapshot(remaining)
-                    startLoop()
-                    startBudgetTicker(remaining)
+                    _state.value = snapshot(remaining, gameStarted = false)
+                    // Loop and budget ticker start on the first tap, not here - see nudgePaddle().
                 }
             }
         } else {
             val current = _state.value
-            if (current is BrickBreakerUiState.Playing) {
+            if (current is BrickBreakerUiState.Playing && current.gameStarted) {
                 startLoop()
                 startBudgetTicker(current.remainingSeconds)
             }
@@ -143,6 +144,12 @@ class BrickBreakerScreenViewModel(
     }
 
     fun nudgePaddle(direction: PaddleDirection) {
+        val current = _state.value as? BrickBreakerUiState.Playing
+        if (current != null && !current.gameStarted) {
+            _state.value = current.copy(gameStarted = true)
+            startLoop()
+            startBudgetTicker(current.remainingSeconds)
+        }
         game.nudgePaddle(direction)
     }
 
@@ -152,7 +159,7 @@ class BrickBreakerScreenViewModel(
         _state.value = snapshot(current.remainingSeconds)
     }
 
-    private fun snapshot(remainingSeconds: Int) = BrickBreakerUiState.Playing(
+    private fun snapshot(remainingSeconds: Int, gameStarted: Boolean = true) = BrickBreakerUiState.Playing(
         paddleX = game.paddleX,
         ballX = game.ballX,
         ballY = game.ballY,
@@ -163,6 +170,7 @@ class BrickBreakerScreenViewModel(
         isGameOver = game.isGameOver,
         isWon = game.isWon,
         remainingSeconds = remainingSeconds,
+        gameStarted = gameStarted,
     )
 }
 
@@ -254,6 +262,15 @@ private fun PlayingContent(state: BrickBreakerUiState.Playing, viewModel: BrickB
             },
     ) {
         BrickBreakerBoard(state = state)
+
+        if (!state.gameStarted) {
+            LightText(
+                text = "Tap to start",
+                variant = LightTextVariant.Heading,
+                align = TextAlign.Center,
+                modifier = Modifier.fillMaxWidth().align(Alignment.Center).offset(y = 1.5f.gridUnitsAsDp()),
+            )
+        }
 
         if (state.isGameOver || state.isWon) {
             GameEndOverlay(won = state.isWon, score = state.score, onRestart = { viewModel.restart() })

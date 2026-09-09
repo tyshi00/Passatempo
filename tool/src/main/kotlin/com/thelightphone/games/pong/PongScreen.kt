@@ -7,6 +7,7 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
@@ -59,6 +60,7 @@ sealed class PongUiState {
         val playerScore: Int,
         val aiScore: Int,
         val remainingSeconds: Int,
+        val gameStarted: Boolean = true,
     ) : PongUiState()
 }
 
@@ -83,14 +85,13 @@ class PongScreenViewModel(
                 if (remaining <= 0) {
                     _state.value = PongUiState.TimeUp
                 } else {
-                    _state.value = snapshot(remaining)
-                    startLoop()
-                    startBudgetTicker(remaining)
+                    _state.value = snapshot(remaining, gameStarted = false)
+                    // Loop and budget ticker start on the first tap, not here - see nudgePaddle().
                 }
             }
         } else {
             val current = _state.value
-            if (current is PongUiState.Playing) {
+            if (current is PongUiState.Playing && current.gameStarted) {
                 startLoop()
                 startBudgetTicker(current.remainingSeconds)
             }
@@ -145,10 +146,16 @@ class PongScreenViewModel(
     }
 
     fun nudgePaddle(direction: PongPaddleDirection) {
+        val current = _state.value as? PongUiState.Playing
+        if (current != null && !current.gameStarted) {
+            _state.value = current.copy(gameStarted = true)
+            startLoop()
+            startBudgetTicker(current.remainingSeconds)
+        }
         game.nudgePlayerPaddle(direction)
     }
 
-    private fun snapshot(remainingSeconds: Int) = PongUiState.Playing(
+    private fun snapshot(remainingSeconds: Int, gameStarted: Boolean = true) = PongUiState.Playing(
         playerPaddleX = game.playerPaddleX,
         aiPaddleX = game.aiPaddleX,
         ballX = game.ballX,
@@ -158,6 +165,7 @@ class PongScreenViewModel(
         playerScore = game.playerScore,
         aiScore = game.aiScore,
         remainingSeconds = remainingSeconds,
+        gameStarted = gameStarted,
     )
 }
 
@@ -255,6 +263,15 @@ private fun PlayingContent(state: PongUiState.Playing, viewModel: PongScreenView
                 },
         ) {
             PongBoard(state = state)
+
+            if (!state.gameStarted) {
+                LightText(
+                    text = "Tap to start",
+                    variant = LightTextVariant.Heading,
+                    align = TextAlign.Center,
+                    modifier = Modifier.fillMaxWidth().align(Alignment.Center).offset(y = (-4f).gridUnitsAsDp()),
+                )
+            }
         }
     }
 }

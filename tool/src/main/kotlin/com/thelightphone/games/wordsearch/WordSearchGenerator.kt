@@ -334,24 +334,61 @@ object WordSearchGenerator {
         return WordSearchPuzzle(size, grid, placed)
     }
 
+    /**
+     * Checks every legal position and direction for [word], and prefers whichever one
+     * reuses the most letters already on the grid - that's what makes words actually cross
+     * each other instead of just sitting in their own empty strip of the grid. Falls back to
+     * placements with no overlap at all only when none exist, so every word still gets placed.
+     */
     private fun placeWord(word: String, grid: Array<CharArray>, size: Int, random: Random): PlacedWord? {
-        repeat(200) {
-            val (dRow, dCol) = DIRECTIONS.random(random)
+        var bestOverlap = -1
+        val bestCandidates = mutableListOf<PlacedWord>()
+
+        for ((dRow, dCol) in DIRECTIONS) {
             val startRowRange = validStartRange(size, dRow, word.length)
             val startColRange = validStartRange(size, dCol, word.length)
-            if (startRowRange.isEmpty() || startColRange.isEmpty()) return@repeat
-
-            val startRow = startRowRange.random(random)
-            val startCol = startColRange.random(random)
-
-            if (fits(word, grid, startRow, startCol, dRow, dCol, size)) {
-                for (i in word.indices) {
-                    grid[startRow + dRow * i][startCol + dCol * i] = word[i]
+            for (startRow in startRowRange) {
+                for (startCol in startColRange) {
+                    if (!fits(word, grid, startRow, startCol, dRow, dCol, size)) continue
+                    val overlap = overlapCount(word, grid, startRow, startCol, dRow, dCol)
+                    when {
+                        overlap > bestOverlap -> {
+                            bestOverlap = overlap
+                            bestCandidates.clear()
+                            bestCandidates.add(PlacedWord(word, startRow, startCol, dRow, dCol))
+                        }
+                        overlap == bestOverlap -> {
+                            bestCandidates.add(PlacedWord(word, startRow, startCol, dRow, dCol))
+                        }
+                    }
                 }
-                return PlacedWord(word, startRow, startCol, dRow, dCol)
             }
         }
-        return null
+
+        if (bestCandidates.isEmpty()) return null
+
+        // Several equally-good placements usually exist - picking randomly among them keeps
+        // the grid from looking mechanically identical every time the same word comes up.
+        val chosen = bestCandidates.random(random)
+        for (i in word.indices) {
+            grid[chosen.startRow + chosen.dRow * i][chosen.startCol + chosen.dCol * i] = word[i]
+        }
+        return chosen
+    }
+
+    private fun overlapCount(
+        word: String,
+        grid: Array<CharArray>,
+        startRow: Int,
+        startCol: Int,
+        dRow: Int,
+        dCol: Int,
+    ): Int {
+        var count = 0
+        for (i in word.indices) {
+            if (grid[startRow + dRow * i][startCol + dCol * i] == word[i]) count++
+        }
+        return count
     }
 
     private fun validStartRange(size: Int, delta: Int, length: Int): IntRange = when {
