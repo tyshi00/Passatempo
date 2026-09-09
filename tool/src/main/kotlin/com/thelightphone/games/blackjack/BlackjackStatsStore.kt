@@ -4,12 +4,15 @@ import androidx.datastore.core.DataStore
 import androidx.datastore.preferences.core.Preferences
 import androidx.datastore.preferences.core.edit
 import androidx.datastore.preferences.core.intPreferencesKey
+import androidx.datastore.preferences.core.stringPreferencesKey
 import kotlinx.coroutines.flow.first
+import java.time.LocalDate
 
 /**
- * Lifetime hand tally for Blackjack - wins, losses, and pushes. Persisted across sessions
- * (not just the current visit), since a "scorekeeper" that resets every time you leave the
- * screen isn't really keeping score.
+ * Today's hand tally for Blackjack - wins, losses, and pushes. Resets automatically the
+ * first time it's touched on a new calendar day, the same convention DailyLimitStore and
+ * DailyPlaytimeStore already use, so it stays in step with the daily budget instead of
+ * growing indefinitely and crowding the screen.
  */
 class BlackjackStatsStore(private val dataStore: DataStore<Preferences>) {
 
@@ -18,9 +21,14 @@ class BlackjackStatsStore(private val dataStore: DataStore<Preferences>) {
     private val winsKey = intPreferencesKey("blackjack_wins")
     private val lossesKey = intPreferencesKey("blackjack_losses")
     private val pushesKey = intPreferencesKey("blackjack_pushes")
+    private val dateKey = stringPreferencesKey("blackjack_stats_date")
 
+    private fun todayString(): String = LocalDate.now().toString()
+
+    /** Today's tally, or all zeros if nothing has been recorded yet today. */
     suspend fun load(): Stats {
         val prefs = dataStore.data.first()
+        if (prefs[dateKey] != todayString()) return Stats()
         return Stats(
             wins = prefs[winsKey] ?: 0,
             losses = prefs[lossesKey] ?: 0,
@@ -33,7 +41,18 @@ class BlackjackStatsStore(private val dataStore: DataStore<Preferences>) {
     suspend fun recordPush(): Stats = increment(pushesKey)
 
     private suspend fun increment(key: Preferences.Key<Int>): Stats {
-        dataStore.edit { prefs -> prefs[key] = (prefs[key] ?: 0) + 1 }
+        dataStore.edit { prefs ->
+            val today = todayString()
+            if (prefs[dateKey] != today) {
+                // New day - the old counts don't apply anymore, so clear them before
+                // applying this increment rather than adding onto yesterday's total.
+                prefs[winsKey] = 0
+                prefs[lossesKey] = 0
+                prefs[pushesKey] = 0
+                prefs[dateKey] = today
+            }
+            prefs[key] = (prefs[key] ?: 0) + 1
+        }
         return load()
     }
 }
