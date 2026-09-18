@@ -2,7 +2,10 @@ package com.thelightphone.games.pong
 
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
+import androidx.compose.foundation.gestures.awaitEachGesture
+import androidx.compose.foundation.gestures.awaitFirstDown
 import androidx.compose.foundation.gestures.detectTapGestures
+import androidx.compose.foundation.gestures.drag
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxSize
@@ -19,9 +22,11 @@ import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.text.style.TextAlign
 import androidx.lifecycle.viewModelScope
+import com.thelightphone.games.ControlModeStore
 import com.thelightphone.games.DailyPlaytimeStore
 import com.thelightphone.games.GameBudgets
 import com.thelightphone.games.GameKeys
+import com.thelightphone.games.PaddleControlMode
 import com.thelightphone.sdk.LightScreen
 import com.thelightphone.sdk.LightViewModel
 import com.thelightphone.sdk.SealedLightActivity
@@ -61,17 +66,20 @@ sealed class PongUiState {
         val aiScore: Int,
         val remainingSeconds: Int,
         val gameStarted: Boolean = true,
+        val controlMode: PaddleControlMode = PaddleControlMode.TAP,
     ) : PongUiState()
 }
 
 class PongScreenViewModel(
     private val dailyPlaytimeStore: DailyPlaytimeStore,
+    private val controlModeStore: ControlModeStore,
 ) : LightViewModel<Unit>() {
 
     private val game = PongGame()
     private var loopJob: Job? = null
     private var budgetJob: Job? = null
     private var hasStarted = false
+    private var controlMode = PaddleControlMode.TAP
 
     private val _state = MutableStateFlow<PongUiState>(PongUiState.CheckingBudget)
     val state: StateFlow<PongUiState> = _state
@@ -81,6 +89,7 @@ class PongScreenViewModel(
         if (!hasStarted) {
             hasStarted = true
             viewModelScope.launch {
+                controlMode = controlModeStore.get()
                 val remaining = dailyPlaytimeStore.remainingSeconds(GameKeys.PONG, GameBudgets.PONG_SECONDS)
                 if (remaining <= 0) {
                     _state.value = PongUiState.TimeUp
@@ -90,10 +99,16 @@ class PongScreenViewModel(
                 }
             }
         } else {
-            val current = _state.value
-            if (current is PongUiState.Playing && current.gameStarted) {
-                startLoop()
-                startBudgetTicker(current.remainingSeconds)
+            viewModelScope.launch {
+                controlMode = controlModeStore.get()
+                val current = _state.value
+                if (current is PongUiState.Playing) {
+                    _state.value = current.copy(controlMode = controlMode)
+                    if (current.gameStarted) {
+                        startLoop()
+                        startBudgetTicker(current.remainingSeconds)
+                    }
+                }
             }
         }
     }
@@ -155,6 +170,17 @@ class PongScreenViewModel(
         game.nudgePlayerPaddle(direction)
     }
 
+    /** Drag mode: [centerX] is the touch position in game-field coordinates. */
+    fun dragPaddle(centerX: Float) {
+        val current = _state.value as? PongUiState.Playing
+        if (current != null && !current.gameStarted) {
+            _state.value = current.copy(gameStarted = true)
+            startLoop()
+            startBudgetTicker(current.remainingSeconds)
+        }
+        game.setPlayerPaddleCenterX(centerX)
+    }
+
     private fun snapshot(remainingSeconds: Int, gameStarted: Boolean = true) = PongUiState.Playing(
         playerPaddleX = game.playerPaddleX,
         aiPaddleX = game.aiPaddleX,
@@ -166,6 +192,7 @@ class PongScreenViewModel(
         aiScore = game.aiScore,
         remainingSeconds = remainingSeconds,
         gameStarted = gameStarted,
+        controlMode = controlMode,
     )
 }
 
@@ -176,7 +203,10 @@ class PongScreen(sealedActivity: SealedLightActivity) :
         get() = PongScreenViewModel::class.java
 
     override fun createViewModel(): PongScreenViewModel =
-        PongScreenViewModel(DailyPlaytimeStore(lightContext.dataStore))
+        PongScreenViewModel(
+            dailyPlaytimeStore = DailyPlaytimeStore(lightContext.dataStore),
+            controlModeStore = ControlModeStore(lightContext.dataStore),
+        )
 
     @Composable
     override fun Content() {
@@ -251,16 +281,34 @@ private fun PlayingContent(state: PongUiState.Playing, viewModel: PongScreenView
             modifier = Modifier.padding(vertical = 0.5f.gridUnitsAsDp()),
         )
 
+        val gestureModifier = if (state.controlMode == PaddleControlMode.DRAG) {
+            Modifier.pointerInput(Unit) {
+                awaitEachGesture {
+                    // awaitFirstDown fires on every touch, tap or drag alike - unlike
+                    // detectDragGestures' onDragStart, which only fires once real movement
+                    // is recognized, leaving a plain tap-and-release doing nothing at all.
+                    val down = awaitFirstDown(requireUnconsumed = false)
+                    viewModel.dragPaddle(down.position.x / size.width.toFloat() * state.fieldWidth)
+                    drag(down.id) { change ->
+                        change.consume()
+                        viewModel.dragPaddle(change.position.x / size.width.toFloat() * state.fieldWidth)
+                    }
+                }
+            }
+        } else {
+            Modifier.pointerInput(Unit) {
+                detectTapGestures { offset ->
+                    val direction = if (offset.x < size.width / 2f) PongPaddleDirection.LEFT else PongPaddleDirection.RIGHT
+                    viewModel.nudgePaddle(direction)
+                }
+            }
+        }
+
         Box(
             modifier = Modifier
                 .weight(1f)
                 .fillMaxSize()
-                .pointerInput(Unit) {
-                    detectTapGestures { offset ->
-                        val direction = if (offset.x < size.width / 2f) PongPaddleDirection.LEFT else PongPaddleDirection.RIGHT
-                        viewModel.nudgePaddle(direction)
-                    }
-                },
+                .then(gestureModifier),
         ) {
             PongBoard(state = state)
 

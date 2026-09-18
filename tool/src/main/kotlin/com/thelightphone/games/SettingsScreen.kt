@@ -37,15 +37,20 @@ import kotlinx.coroutines.launch
 class SettingsScreenViewModel(
     private val settingsStore: SettingsStore,
     private val gameVisibilityStore: GameVisibilityStore,
+    private val controlModeStore: ControlModeStore,
 ) : LightViewModel<Unit>() {
 
     private val _gameVisibility = MutableStateFlow<Map<String, Boolean>>(emptyMap())
     val gameVisibility: StateFlow<Map<String, Boolean>> = _gameVisibility
 
+    private val _controlMode = MutableStateFlow(PaddleControlMode.TAP)
+    val controlMode: StateFlow<PaddleControlMode> = _controlMode
+
     override fun onScreenShow(screen: SimpleLightScreen<Unit>) {
         super.onScreenShow(screen)
         viewModelScope.launch {
             _gameVisibility.value = ALL_GAME_KEYS.associateWith { gameVisibilityStore.isVisible(it) }
+            _controlMode.value = controlModeStore.get()
         }
     }
 
@@ -63,6 +68,12 @@ class SettingsScreenViewModel(
             _gameVisibility.value = _gameVisibility.value + (gameKey to newValue)
         }
     }
+
+    fun cycleControlMode() {
+        viewModelScope.launch {
+            _controlMode.value = controlModeStore.toggle()
+        }
+    }
 }
 
 class SettingsScreen(sealedActivity: SealedLightActivity) :
@@ -75,6 +86,7 @@ class SettingsScreen(sealedActivity: SealedLightActivity) :
         SettingsScreenViewModel(
             settingsStore = SettingsStore(lightContext.dataStore),
             gameVisibilityStore = GameVisibilityStore(lightContext.dataStore),
+            controlModeStore = ControlModeStore(lightContext.dataStore),
         )
 
     @Composable
@@ -82,6 +94,7 @@ class SettingsScreen(sealedActivity: SealedLightActivity) :
         val themeColors by LightThemeController.colors.collectAsState()
         val isInverted = themeColors != LightThemeColors.Dark
         val gameVisibility by viewModel.gameVisibility.collectAsState()
+        val controlMode by viewModel.controlMode.collectAsState()
 
         LightTheme(colors = themeColors) {
             Column(
@@ -108,6 +121,12 @@ class SettingsScreen(sealedActivity: SealedLightActivity) :
                         onClick = { viewModel.toggleInvertColors() },
                     )
 
+                    CycleRow(
+                        label = "Brick-Breaker/Pong Controls",
+                        value = if (controlMode == PaddleControlMode.DRAG) "Slide/Drag" else "Tap",
+                        onClick = { viewModel.cycleControlMode() },
+                    )
+
                     LightText(
                         text = "Show on home screen",
                         variant = LightTextVariant.Detail,
@@ -128,6 +147,28 @@ class SettingsScreen(sealedActivity: SealedLightActivity) :
                 }
             }
         }
+    }
+}
+
+@Composable
+private fun CycleRow(
+    label: String,
+    value: String,
+    onClick: () -> Unit,
+    modifier: Modifier = Modifier,
+) {
+    Row(
+        modifier = modifier
+            .fillMaxWidth()
+            .lightClickable(onClick = onClick)
+            .padding(horizontal = 2f.gridUnitsAsDp(), vertical = 1.25f.gridUnitsAsDp()),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        LightText(
+            text = "$label: $value",
+            variant = LightTextVariant.Copy,
+            modifier = Modifier.weight(1f),
+        )
     }
 }
 

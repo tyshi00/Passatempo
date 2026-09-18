@@ -2,7 +2,10 @@ package com.thelightphone.games.brickbreaker
 
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
+import androidx.compose.foundation.gestures.awaitEachGesture
+import androidx.compose.foundation.gestures.awaitFirstDown
 import androidx.compose.foundation.gestures.detectTapGestures
+import androidx.compose.foundation.gestures.drag
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxSize
@@ -19,9 +22,11 @@ import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.text.style.TextAlign
 import androidx.lifecycle.viewModelScope
+import com.thelightphone.games.ControlModeStore
 import com.thelightphone.games.DailyPlaytimeStore
 import com.thelightphone.games.GameBudgets
 import com.thelightphone.games.GameKeys
+import com.thelightphone.games.PaddleControlMode
 import com.thelightphone.sdk.LightScreen
 import com.thelightphone.sdk.LightViewModel
 import com.thelightphone.sdk.SealedLightActivity
@@ -63,17 +68,20 @@ sealed class BrickBreakerUiState {
         val isWon: Boolean,
         val remainingSeconds: Int,
         val gameStarted: Boolean = true,
+        val controlMode: PaddleControlMode = PaddleControlMode.TAP,
     ) : BrickBreakerUiState()
 }
 
 class BrickBreakerScreenViewModel(
     private val dailyPlaytimeStore: DailyPlaytimeStore,
+    private val controlModeStore: ControlModeStore,
 ) : LightViewModel<Unit>() {
 
     private val game = BrickBreakerGame()
     private var loopJob: Job? = null
     private var budgetJob: Job? = null
     private var hasStarted = false
+    private var controlMode = PaddleControlMode.TAP
 
     private val _state = MutableStateFlow<BrickBreakerUiState>(BrickBreakerUiState.CheckingBudget)
     val state: StateFlow<BrickBreakerUiState> = _state
@@ -83,6 +91,7 @@ class BrickBreakerScreenViewModel(
         if (!hasStarted) {
             hasStarted = true
             viewModelScope.launch {
+                controlMode = controlModeStore.get()
                 val remaining = dailyPlaytimeStore.remainingSeconds(GameKeys.BRICK_BREAKER, GameBudgets.BRICK_BREAKER_SECONDS)
                 if (remaining <= 0) {
                     _state.value = BrickBreakerUiState.TimeUp
@@ -92,10 +101,16 @@ class BrickBreakerScreenViewModel(
                 }
             }
         } else {
-            val current = _state.value
-            if (current is BrickBreakerUiState.Playing && current.gameStarted) {
-                startLoop()
-                startBudgetTicker(current.remainingSeconds)
+            viewModelScope.launch {
+                controlMode = controlModeStore.get()
+                val current = _state.value
+                if (current is BrickBreakerUiState.Playing) {
+                    _state.value = current.copy(controlMode = controlMode)
+                    if (current.gameStarted) {
+                        startLoop()
+                        startBudgetTicker(current.remainingSeconds)
+                    }
+                }
             }
         }
     }
@@ -153,6 +168,17 @@ class BrickBreakerScreenViewModel(
         game.nudgePaddle(direction)
     }
 
+    /** Drag mode: [centerX] is the touch position in game-field coordinates. */
+    fun dragPaddle(centerX: Float) {
+        val current = _state.value as? BrickBreakerUiState.Playing
+        if (current != null && !current.gameStarted) {
+            _state.value = current.copy(gameStarted = true)
+            startLoop()
+            startBudgetTicker(current.remainingSeconds)
+        }
+        game.setPaddleCenterX(centerX)
+    }
+
     fun restart() {
         val current = _state.value as? BrickBreakerUiState.Playing ?: return
         game.reset()
@@ -171,6 +197,7 @@ class BrickBreakerScreenViewModel(
         isWon = game.isWon,
         remainingSeconds = remainingSeconds,
         gameStarted = gameStarted,
+        controlMode = controlMode,
     )
 }
 
@@ -181,7 +208,10 @@ class BrickBreakerScreen(sealedActivity: SealedLightActivity) :
         get() = BrickBreakerScreenViewModel::class.java
 
     override fun createViewModel(): BrickBreakerScreenViewModel =
-        BrickBreakerScreenViewModel(DailyPlaytimeStore(lightContext.dataStore))
+        BrickBreakerScreenViewModel(
+            dailyPlaytimeStore = DailyPlaytimeStore(lightContext.dataStore),
+            controlModeStore = ControlModeStore(lightContext.dataStore),
+        )
 
     @Composable
     override fun Content() {
@@ -250,16 +280,34 @@ private fun TimeUpMessage() {
 
 @Composable
 private fun PlayingContent(state: BrickBreakerUiState.Playing, viewModel: BrickBreakerScreenViewModel) {
+    val gestureModifier = if (state.controlMode == PaddleControlMode.DRAG) {
+        Modifier.pointerInput(Unit) {
+            awaitEachGesture {
+                // awaitFirstDown fires on every touch, tap or drag alike - unlike
+                // detectDragGestures' onDragStart, which only fires once real movement
+                // is recognized, leaving a plain tap-and-release doing nothing at all.
+                val down = awaitFirstDown(requireUnconsumed = false)
+                viewModel.dragPaddle(down.position.x / size.width.toFloat() * state.fieldWidth)
+                drag(down.id) { change ->
+                    change.consume()
+                    viewModel.dragPaddle(change.position.x / size.width.toFloat() * state.fieldWidth)
+                }
+            }
+        }
+    } else {
+        Modifier.pointerInput(Unit) {
+            detectTapGestures { offset ->
+                val direction = if (offset.x < size.width / 2f) PaddleDirection.LEFT else PaddleDirection.RIGHT
+                viewModel.nudgePaddle(direction)
+            }
+        }
+    }
+
     Box(
         modifier = Modifier
             .fillMaxSize()
             .padding(1f.gridUnitsAsDp())
-            .pointerInput(Unit) {
-                detectTapGestures { offset ->
-                    val direction = if (offset.x < size.width / 2f) PaddleDirection.LEFT else PaddleDirection.RIGHT
-                    viewModel.nudgePaddle(direction)
-                }
-            },
+            .then(gestureModifier),
     ) {
         BrickBreakerBoard(state = state)
 

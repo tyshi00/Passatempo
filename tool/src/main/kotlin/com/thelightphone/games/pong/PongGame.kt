@@ -50,6 +50,11 @@ class PongGame(
         playerPaddleX = (playerPaddleX + delta).coerceIn(0f, width - PADDLE_WIDTH)
     }
 
+    /** Moves the player's paddle so its center sits under [centerX] (drag mode). */
+    fun setPlayerPaddleCenterX(centerX: Float) {
+        playerPaddleX = (centerX - PADDLE_WIDTH / 2f).coerceIn(0f, width - PADDLE_WIDTH)
+    }
+
     fun tick() {
         moveAiPaddle()
         moveBall()

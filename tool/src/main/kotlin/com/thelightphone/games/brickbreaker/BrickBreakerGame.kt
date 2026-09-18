@@ -81,6 +81,12 @@ class BrickBreakerGame(
         paddleX = (paddleX + delta).coerceIn(0f, width - PADDLE_WIDTH)
     }
 
+    /** Moves the paddle so its center sits under [centerX] (drag mode) - clamped to the field. */
+    fun setPaddleCenterX(centerX: Float) {
+        if (isGameOver || isWon) return
+        paddleX = (centerX - PADDLE_WIDTH / 2f).coerceIn(0f, width - PADDLE_WIDTH)
+    }
+
     fun tick() {
         if (isGameOver || isWon) return
         moveBall()
