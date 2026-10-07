@@ -37,6 +37,7 @@ import com.thelightphone.sdk.ui.LightThemeTokens
 import com.thelightphone.sdk.ui.LightTopBar
 import com.thelightphone.sdk.ui.LightTopBarCenter
 import com.thelightphone.sdk.ui.gridUnitsAsDp
+import com.thelightphone.sdk.ui.rememberLightHapticTrigger
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -264,12 +265,14 @@ private fun ConnectFourBoard(
     val columns = state.grid.firstOrNull()?.size ?: 7
     val rows = state.grid.size
     val gameOver = state.winner != null || state.isDraw
+    val triggerHaptic = rememberLightHapticTrigger()
 
     Box(
         modifier = modifier
             .aspectRatio(columns / rows.toFloat(), matchHeightConstraintsFirst = true)
-            .pointerInput(gameOver) {
+            .pointerInput(gameOver, triggerHaptic) {
                 detectTapGestures { offset ->
+                    triggerHaptic()
                     if (gameOver) {
                         onColumnTap(-1)
                         return@detectTapGestures

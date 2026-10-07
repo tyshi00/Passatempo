@@ -33,6 +33,7 @@ import com.thelightphone.sdk.SealedLightActivity
 import com.thelightphone.sdk.SimpleLightScreen
 import com.thelightphone.sdk.ui.LightBarButton
 import com.thelightphone.sdk.ui.LightIcons
+import com.thelightphone.sdk.ui.rememberLightHapticTrigger
 import com.thelightphone.sdk.ui.LightText
 import com.thelightphone.sdk.ui.LightTextVariant
 import com.thelightphone.sdk.ui.LightTheme
@@ -281,6 +282,7 @@ private fun PlayingContent(state: PongUiState.Playing, viewModel: PongScreenView
             modifier = Modifier.padding(vertical = 0.5f.gridUnitsAsDp()),
         )
 
+        val triggerHaptic = rememberLightHapticTrigger()
         val gestureModifier = if (state.controlMode == PaddleControlMode.DRAG) {
             Modifier.pointerInput(Unit) {
                 awaitEachGesture {
@@ -296,8 +298,9 @@ private fun PlayingContent(state: PongUiState.Playing, viewModel: PongScreenView
                 }
             }
         } else {
-            Modifier.pointerInput(Unit) {
+            Modifier.pointerInput(triggerHaptic) {
                 detectTapGestures { offset ->
+                    triggerHaptic()
                     val direction = if (offset.x < size.width / 2f) PongPaddleDirection.LEFT else PongPaddleDirection.RIGHT
                     viewModel.nudgePaddle(direction)
                 }

@@ -29,6 +29,7 @@ class LightSdkServerSettings(context: Context) {
         private const val KEYBOARD_EMOJIS = "lp3_keyboard_emojis"
         private const val KEYBOARD_SHOW_VOICE = "lp3_keyboard_show_voice"
         private const val KEYBOARD_ENABLE_KEY_ANIMATION = "lp3_keyboard_enable_key_animation"
+        private const val HAPTICS_ENABLED = "haptics_enabled"
     }
 
     private val contentResolver = context.contentResolver
@@ -46,6 +47,13 @@ class LightSdkServerSettings(context: Context) {
             }
         set(value) {
             preferences.edit().putInt(CLIENT_FILTER_LEVEL, value.ordinal).apply()
+        }
+
+    // defaults to on; this emulator/server build predates a real per-user haptics toggle
+    var hapticsEnabled: Boolean
+        get() = preferences.getBoolean(HAPTICS_ENABLED, true)
+        set(value) {
+            preferences.edit().putBoolean(HAPTICS_ENABLED, value).apply()
         }
 
     // store in system settings for now so readable from apps that can't talk to server

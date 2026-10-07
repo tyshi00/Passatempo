@@ -37,6 +37,7 @@ import com.thelightphone.sdk.ui.LightThemeTokens
 import com.thelightphone.sdk.ui.LightTopBar
 import com.thelightphone.sdk.ui.LightTopBarCenter
 import com.thelightphone.sdk.ui.gridUnitsAsDp
+import com.thelightphone.sdk.ui.rememberLightHapticTrigger
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -259,12 +260,14 @@ private fun TicTacToeBoard(
 ) {
     val colors = LightThemeTokens.colors
     val gameOver = state.winner != null || state.isDraw
+    val triggerHaptic = rememberLightHapticTrigger()
 
     Box(
         modifier = modifier
             .aspectRatio(1f, matchHeightConstraintsFirst = true)
-            .pointerInput(gameOver) {
+            .pointerInput(gameOver, triggerHaptic) {
                 detectTapGestures { offset ->
+                    triggerHaptic()
                     if (gameOver) {
                         onCellTap(-1)
                         return@detectTapGestures

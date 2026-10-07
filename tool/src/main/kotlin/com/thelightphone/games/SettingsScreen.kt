@@ -105,6 +105,7 @@ class SettingsScreen(sealedActivity: SealedLightActivity) :
                 LightTopBar(
                     leftButton = LightBarButton.LightIcon(icon = LightIcons.BACK, onClick = { goBack() }),
                     center = LightTopBarCenter.Text("Settings"),
+                    modifier = Modifier.padding(bottom = 1f.gridUnitsAsDp()),
                 )
 
                 LightScrollView(
@@ -132,7 +133,7 @@ class SettingsScreen(sealedActivity: SealedLightActivity) :
                         variant = LightTextVariant.Detail,
                         lighten = true,
                         modifier = Modifier.padding(
-                            horizontal = 2f.gridUnitsAsDp(),
+                            horizontal = 1f.gridUnitsAsDp(),
                             vertical = 0.75f.gridUnitsAsDp(),
                         ),
                     )
@@ -161,12 +162,12 @@ private fun CycleRow(
         modifier = modifier
             .fillMaxWidth()
             .lightClickable(onClick = onClick)
-            .padding(horizontal = 2f.gridUnitsAsDp(), vertical = 1.25f.gridUnitsAsDp()),
+            .padding(horizontal = 1f.gridUnitsAsDp(), vertical = 0.75f.gridUnitsAsDp()),
         verticalAlignment = Alignment.CenterVertically,
     ) {
         LightText(
             text = "$label: $value",
-            variant = LightTextVariant.Copy,
+            variant = LightTextVariant.Heading,
             modifier = Modifier.weight(1f),
         )
     }
@@ -183,7 +184,7 @@ private fun SettingsRow(
         modifier = modifier
             .fillMaxWidth()
             .lightClickable(onClick = onClick)
-            .padding(horizontal = 2f.gridUnitsAsDp(), vertical = 1.25f.gridUnitsAsDp()),
+            .padding(horizontal = 1f.gridUnitsAsDp(), vertical = 0.75f.gridUnitsAsDp()),
         verticalAlignment = Alignment.CenterVertically,
     ) {
         // Note: LightIcons.TOGGLE_ON renders its knob on the LEFT, TOGGLE_OFF on the RIGHT -
@@ -195,7 +196,7 @@ private fun SettingsRow(
         )
         LightText(
             text = title,
-            variant = LightTextVariant.Copy,
+            variant = LightTextVariant.Heading,
             modifier = Modifier.weight(1f),
         )
     }

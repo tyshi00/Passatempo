@@ -1,9 +1,12 @@
 [tool]
 id          = "com.tyshi00.games"
 label       = "Passatempo"
-versionCode = 21
-versionName = "1.0.0"
-permissions = []                              # everything runs fully on-device, no permissions needed
-# confirmed working as-is on a real LP3 - no change needed
-# serverPackage = "com.lightos"  # alternative, only if needed
-serverPackage = "com.thelightphone.sdk.emulator"
+versionCode = 22
+versionName = "1.1.0"
+permissions = ["android.permission.VIBRATE"]  # needed for haptic feedback on tap
+# Must be com.lightos on a real LP3. LightServiceConnection binds to this
+# package; with the emulator value the bind fails on device, GetUserPreferences
+# errors out, and haptics stay off with no visible symptom.
+# Swap these two lines to run in the desktop emulator instead.
+serverPackage = "com.lightos"
+# serverPackage = "com.thelightphone.sdk.emulator"

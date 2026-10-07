@@ -44,6 +44,7 @@ import com.thelightphone.sdk.ui.LightTopBar
 import com.thelightphone.sdk.ui.LightTopBarCenter
 import com.thelightphone.sdk.ui.gridUnitsAsDp
 import com.thelightphone.sdk.ui.lightClickable
+import com.thelightphone.sdk.ui.rememberLightHapticTrigger
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -417,12 +418,14 @@ private fun SudokuGrid(
     val colors = LightThemeTokens.colors
     val givenColor = colors.content.toArgb()
     val enteredColor = colors.contentSecondary.toArgb()
+    val triggerHaptic = rememberLightHapticTrigger()
 
     Box(
         modifier = modifier
             .aspectRatio(1f, matchHeightConstraintsFirst = true)
-            .pointerInput(Unit) {
+            .pointerInput(triggerHaptic) {
                 detectTapGestures { offset ->
+                    triggerHaptic()
                     val cell = size.width / 9f
                     val col = (offset.x / cell).toInt().coerceIn(0, 8)
                     val row = (offset.y / cell).toInt().coerceIn(0, 8)
@@ -482,6 +485,7 @@ private fun NumberPad(
     onClearAll: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
+    val triggerHaptic = rememberLightHapticTrigger()
     Column(modifier = modifier.padding(vertical = 0.75f.gridUnitsAsDp())) {
         Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceEvenly) {
             (1..5).forEach { digit ->
@@ -514,8 +518,14 @@ private fun NumberPad(
                     .combinedClickable(
                         interactionSource = null,
                         indication = null,
-                        onClick = onClear,
-                        onLongClick = onClearAll,
+                        onClick = {
+                            triggerHaptic()
+                            onClear()
+                        },
+                        onLongClick = {
+                            triggerHaptic()
+                            onClearAll()
+                        },
                     )
                     .padding(0.5f.gridUnitsAsDp()),
             )

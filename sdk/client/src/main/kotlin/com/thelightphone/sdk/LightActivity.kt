@@ -12,10 +12,13 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
+import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.ui.Modifier
 import androidx.lifecycle.ViewModelStoreOwner
 import androidx.lifecycle.viewmodel.compose.LocalViewModelStoreOwner
+import com.thelightphone.sdk.ui.LocalHapticsEnabled
 import androidx.core.splashscreen.SplashScreen.Companion.installSplashScreen
 import androidx.core.view.WindowCompat
 import androidx.core.view.WindowInsetsCompat
@@ -85,22 +88,25 @@ class LightActivity internal constructor() : ComponentActivity() {
 
         setContent {
             androidx.compose.runtime.LaunchedEffect(Unit) { contentReady = true }
+            val hapticsEnabled by rememberHapticsEnabled().collectAsState()
             val screen = currentScreen.value?.screen
             if (screen != null) {
-                Column(modifier = Modifier.fillMaxSize()) {
-                    Box(
-                        modifier = Modifier
-                            .weight(1f)
-                            .fillMaxWidth(),
-                    ) {
-                        val content: @Composable () -> Unit = { screen.Content() }
-                        if (screen is ViewModelStoreOwner) {
-                            CompositionLocalProvider(
-                                LocalViewModelStoreOwner provides screen,
-                                content = content,
-                            )
-                        } else {
-                            content()
+                CompositionLocalProvider(LocalHapticsEnabled provides hapticsEnabled) {
+                    Column(modifier = Modifier.fillMaxSize()) {
+                        Box(
+                            modifier = Modifier
+                                .weight(1f)
+                                .fillMaxWidth(),
+                        ) {
+                            val content: @Composable () -> Unit = { screen.Content() }
+                            if (screen is ViewModelStoreOwner) {
+                                CompositionLocalProvider(
+                                    LocalViewModelStoreOwner provides screen,
+                                    content = content,
+                                )
+                            } else {
+                                content()
+                            }
                         }
                     }
                 }

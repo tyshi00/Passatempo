@@ -35,6 +35,7 @@ import com.thelightphone.sdk.ui.LightThemeTokens
 import com.thelightphone.sdk.ui.LightTopBar
 import com.thelightphone.sdk.ui.LightTopBarCenter
 import com.thelightphone.sdk.ui.gridUnitsAsDp
+import com.thelightphone.sdk.ui.rememberLightHapticTrigger
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -184,13 +185,17 @@ private fun ReadyContent(state: DiceUiState.Ready, viewModel: DiceScreenViewMode
             modifier = Modifier.padding(vertical = 0.5f.gridUnitsAsDp()),
         )
 
+        val triggerHaptic = rememberLightHapticTrigger()
         Box(
             modifier = Modifier
                 .weight(1f)
                 .fillMaxWidth()
                 .padding(2f.gridUnitsAsDp())
-                .pointerInput(state.remainingToday) {
-                    detectTapGestures { viewModel.roll() }
+                .pointerInput(state.remainingToday, triggerHaptic) {
+                    detectTapGestures {
+                        triggerHaptic()
+                        viewModel.roll()
+                    }
                 },
             contentAlignment = Alignment.Center,
         ) {

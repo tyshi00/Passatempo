@@ -158,6 +158,16 @@ class LightSdkService : Service() {
                 )
             }
 
+            LightServiceMethod.GetUserPreferences -> {
+                LightResult.Success(
+                    LightServiceMethod.GetUserPreferences.encodeResponse(
+                        LightServiceMethod.GetUserPreferences.Response(
+                            hapticsEnabled = settings.hapticsEnabled
+                        )
+                    )
+                )
+            }
+
             LightServiceMethod.GetPermission -> {
                 val request = LightServiceMethod.GetPermission.decodeRequest(payload!!)
                 val permissionName = request.permissionName

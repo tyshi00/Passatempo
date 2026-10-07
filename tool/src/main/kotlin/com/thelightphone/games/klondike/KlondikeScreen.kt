@@ -55,6 +55,7 @@ import com.thelightphone.sdk.ui.LightTopBar
 import com.thelightphone.sdk.ui.LightTopBarCenter
 import com.thelightphone.sdk.ui.gridUnitsAsDp
 import com.thelightphone.sdk.ui.lightClickable
+import com.thelightphone.sdk.ui.rememberLightHapticTrigger
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
@@ -353,6 +354,7 @@ class KlondikeScreen(sealedActivity: SealedLightActivity) :
                     }
                     val slots = remember(geometry, game) { buildSlots(game, geometry) }
                     var drag by remember { mutableStateOf<DragState?>(null) }
+                    val triggerHaptic = rememberLightHapticTrigger()
                     var emptied by remember(game) { mutableStateOf(List(Game.FOUNDATIONS) { 0 }) }
 
                     val animation = table.animation
@@ -489,13 +491,16 @@ class KlondikeScreen(sealedActivity: SealedLightActivity) :
                     Box(
                         Modifier
                             .fillMaxSize()
-                            .pointerInput(slots) {
+                            .pointerInput(slots, triggerHaptic) {
                                 detectTapGestures { offset ->
                                     val slot = slots.hit(offset.x.toDp(), offset.y.toDp())
-                                    if (slot != null) viewModel.tap(slot.pile, slot.cardIndex)
+                                    if (slot != null) {
+                                        triggerHaptic()
+                                        viewModel.tap(slot.pile, slot.cardIndex)
+                                    }
                                 }
                             }
-                            .pointerInput(slots) {
+                            .pointerInput(slots, triggerHaptic) {
                                 detectDragGestures(
                                     onDragStart = { offset ->
                                         val slot = slots.hit(offset.x.toDp(), offset.y.toDp())
@@ -503,6 +508,7 @@ class KlondikeScreen(sealedActivity: SealedLightActivity) :
                                         if (slot != null && slot.cardIndex >= 0 &&
                                             state.isDraggable(slot.pile, slot.cardIndex)
                                         ) {
+                                            triggerHaptic()
                                             drag = DragState(
                                                 source = slot.pile, cardIndex = slot.cardIndex,
                                                 cards = state.cardsAt(slot.pile, slot.cardIndex),

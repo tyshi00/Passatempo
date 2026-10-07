@@ -45,6 +45,7 @@ import com.thelightphone.sdk.ui.LightThemeTokens
 import com.thelightphone.sdk.ui.LightTopBar
 import com.thelightphone.sdk.ui.LightTopBarCenter
 import com.thelightphone.sdk.ui.gridUnitsAsDp
+import com.thelightphone.sdk.ui.rememberLightHapticTrigger
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -351,13 +352,15 @@ private fun WordSearchGrid(
     val size = state.puzzle.size
     var startCell by remember { mutableStateOf<Pair<Int, Int>?>(null) }
     val letterColor = colors.content.toArgb()
+    val triggerHaptic = rememberLightHapticTrigger()
 
     Canvas(
         modifier = modifier
             .aspectRatio(1f, matchHeightConstraintsFirst = true)
-            .pointerInput(state.puzzle) {
+            .pointerInput(state.puzzle, triggerHaptic) {
                 detectDragGestures(
                     onDragStart = { offset ->
+                        triggerHaptic()
                         val cell = this.size.width / size.toFloat()
                         val col = (offset.x / cell).toInt().coerceIn(0, size - 1)
                         val row = (offset.y / cell).toInt().coerceIn(0, size - 1)
